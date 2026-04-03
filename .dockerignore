@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+public/pinyin-voice
+*.local
+.DS_Store
+.idea
+.vscode
+*.log
+npm-debug.log*
+.cursor

@@ -1,5 +1,6 @@
 # 拼音练习 · PinyinTrainee
 
+本项目完全使用Cursor搭建
 面向初学儿童的 **汉语拼音互动练习** 网页：听读音、选答案，支持目标分数与闯关成功反馈。界面为中文，适配手机与桌面浏览器。
 
 仓库地址：<https://github.com/majsma2/PinyinTrainee>
@@ -14,7 +15,7 @@
 | **第二关** | 显示单个汉字，听完整音节读音，在 **声母** 与 **韵母** 中各选一项（含三拼音节，如 `iang`、`uang`） |
 | **闯关成功** | 得分达到目标后出现庆祝页，并播放成功音效 |
 
-读音使用 [pinyin-voice](https://www.npmjs.com/package/pinyin-voice) 的预录 MP3（非浏览器 TTS），避免拉丁字母被读成英文字母。
+读音使用 [pinyin-voice](https://www.npmjs.com/package/pinyin-voice) 的预录 MP3
 
 ## 技术栈
 
@@ -42,6 +43,25 @@ npm run preview
 ```
 
 产物在 `dist/` 目录，可将该目录作为静态站点根目录部署。
+
+## Docker
+
+镜像内为 **多阶段构建**：Node 执行 `npm ci` 与 `npm run build`，再用 **Nginx** 托管 `dist`（端口 **80**）。构建时会自动复制 `pinyin-voice` 音频进静态资源。
+
+```bash
+docker build -t pinyin-trainee .
+docker run --rm -p 8080:80 pinyin-trainee
+```
+
+浏览器访问 <http://localhost:8080>。
+
+或使用 Compose：
+
+```bash
+docker compose up --build
+```
+
+默认同样映射为 `8080:80`，见仓库根目录 [`docker-compose.yml`](docker-compose.yml)。
 
 ## 项目结构（节选）
 
