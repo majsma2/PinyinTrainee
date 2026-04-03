@@ -34,4 +34,7 @@ export const LEVEL4_CHARACTERS: Level4Entry[] = [
   { char: '籱', syllable: 'zhuo' },
   { char: '饕', syllable: 'tao' },
   { char: '餮', syllable: 'tie' },
+  { char: '叒', syllable: 'ruo' },
+  { char: '叕', syllable: 'zhuo' },
+  
 ]

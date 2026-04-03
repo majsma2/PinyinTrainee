@@ -36,11 +36,16 @@ let score = 0
 /** 本关目标分，选关后设定 */
 let targetScore = 10
 
+/** —— 本次闯关统计（从进入关卡开始，到闯关成功结束）—— */
+let totalQuestions = 0
+let firstTryCorrect = 0
+
 /** —— 第一关 —— */
 let mode: PracticeMode = 'initial'
 let l1Options: string[] = []
 let l1Target = ''
 let l1Solved = false
+let l1Attempts = 0
 
 /** —— 第二关 —— */
 let l2Entry: Level2Entry | null = null
@@ -49,14 +54,17 @@ let l2Finals: string[] = []
 let l2SelI: string | null = null
 let l2SelF: string | null = null
 let l2Solved = false
+let l2Attempts = 0
 
 /** —— 第三关 —— */
 let l3Entry: Level2Entry | null = null
 let l3Solved = false
+let l3Attempts = 0
 
 /** —— 第四关 —— */
 let l4Entry: Level4Entry | null = null
 let l4Solved = false
+let l4Attempts = 0
 
 /** 全键盘：字母 QWERTY + ü + 退格 / 清空 / 确认（不要求输入声调） */
 const L3_LETTER_ROWS: readonly (readonly string[])[] = [
@@ -109,6 +117,7 @@ function ensureLevel2Data() {
   l2Solved = false
   l2SelI = null
   l2SelF = null
+  l2Attempts = 0
   l2Entry = pickRandomLevel2Entry()
   const { initials, finals } = buildLevel2Choices(l2Entry.initial, l2Entry.final)
   l2Initials = initials
@@ -117,6 +126,7 @@ function ensureLevel2Data() {
 
 function ensureLevel3Data() {
   l3Solved = false
+  l3Attempts = 0
   l3Entry = pickRandomLevel2Entry()
 }
 
@@ -126,6 +136,7 @@ function pickRandomLevel4Entry(): Level4Entry {
 
 function ensureLevel4Data() {
   l4Solved = false
+  l4Attempts = 0
   l4Entry = pickRandomLevel4Entry()
 }
 
@@ -273,6 +284,8 @@ function mountPickTarget() {
     btn.addEventListener('click', () => {
       targetScore = t
       score = 0
+      totalQuestions = 0
+      firstTryCorrect = 0
       cancelPinyinVoice()
       screen =
         pendingLevel === 1
@@ -314,6 +327,26 @@ function mountCelebrate() {
       className: 'celebrate-sub',
       text: `「${title}」已达成 ${targetScore} 分目标（当前 ${score} 分）。`,
     }),
+  )
+  const denom = Math.max(1, totalQuestions)
+  const ratio = firstTryCorrect / denom
+  const percent = Math.round(ratio * 100)
+  const percentText = `${percent} 分`
+  const scoreToneClass =
+    percent >= 90
+      ? 'celebrate-score--good'
+      : percent >= 60
+        ? 'celebrate-score--warn'
+        : 'celebrate-score--bad'
+  box.append(
+    el('p', {
+      className: 'celebrate-sub',
+      text: `本次一次性答对：${firstTryCorrect} / ${totalQuestions}。`,
+    }),
+    el('div', { className: `celebrate-score ${scoreToneClass}` }, [
+      el('div', { className: 'celebrate-score-label', text: '得分' }),
+      el('div', { className: 'celebrate-score-value', text: percentText }),
+    ]),
   )
   const btn = el('button', {
     type: 'button',
@@ -446,11 +479,11 @@ function mountLevel2() {
   })
   const replayBtn = el('button', {
     type: 'button',
-    className: 'l2-replay',
+    className: 'l2-replay l2-replay--sm',
   })
   replayBtn.setAttribute('aria-label', '再听一遍')
   replayBtn.innerHTML =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>'
+    '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>'
   replayBtn.addEventListener('click', () => {
     if (l2Entry) playVoiceFile(l2Entry.voice)
   })
@@ -508,11 +541,11 @@ function mountLevel3() {
   })
   const replayBtn = el('button', {
     type: 'button',
-    className: 'l2-replay',
+    className: 'l2-replay l2-replay--sm',
   })
   replayBtn.setAttribute('aria-label', '再听一遍')
   replayBtn.innerHTML =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>'
+    '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>'
   replayBtn.addEventListener('click', () => {
     if (l3Entry) playVoiceFile(l3Entry.voice)
   })
@@ -743,6 +776,7 @@ function syncLevel2SelectionStyles() {
 function startLevel1Question() {
   if (screen !== 'level1') return
   l1Solved = false
+  l1Attempts = 0
   const pool = poolForMode(mode)
   l1Options = pickDistinct(pool, 4)
   l1Target = l1Options[Math.floor(Math.random() * 4)]
@@ -772,6 +806,7 @@ function finishLevelAndCelebrate() {
 
 function onLevel1Pick(btn: HTMLButtonElement) {
   if (l1Solved || screen !== 'level1') return
+  l1Attempts += 1
   const value = btn.dataset.value ?? ''
   const msg = document.getElementById('message')
 
@@ -780,6 +815,8 @@ function onLevel1Pick(btn: HTMLButtonElement) {
     btn.classList.add('option--correct')
     playCorrect()
     score += 1
+    totalQuestions += 1
+    if (l1Attempts === 1) firstTryCorrect += 1
     updateLevelScoreEl()
     if (msg) msg.textContent = '太棒了！'
     app.querySelectorAll<HTMLButtonElement>('.grid:not(.grid--l2) .option:not(.l2-opt)').forEach((b) => {
@@ -826,6 +863,7 @@ function onLevel2PickFinal(btn: HTMLButtonElement) {
 function tryLevel2Submit() {
   if (!l2Entry || l2Solved) return
   if (l2SelI === null || l2SelF === null) return
+  l2Attempts += 1
 
   const msg = document.getElementById('l2-message')
   const ok = l2SelI === l2Entry.initial && l2SelF === l2Entry.final
@@ -834,6 +872,8 @@ function tryLevel2Submit() {
     l2Solved = true
     playCorrect()
     score += 1
+    totalQuestions += 1
+    if (l2Attempts === 1) firstTryCorrect += 1
     updateLevelScoreEl()
     if (msg) msg.textContent = '太棒了！'
     app.querySelectorAll<HTMLButtonElement>('.l2-opt').forEach((b) => {
@@ -889,6 +929,7 @@ function tryLevel3Submit() {
   const field = document.getElementById('l3-field') as HTMLInputElement | null
   const msg = document.getElementById('l3-message')
   const val = field?.value ?? ''
+  l3Attempts += 1
 
   if (!matchesPinyinAnswer(val, l3Entry.voice)) {
     playWrong()
@@ -901,6 +942,8 @@ function tryLevel3Submit() {
   l3Solved = true
   playCorrect()
   score += 1
+  totalQuestions += 1
+  if (l3Attempts === 1) firstTryCorrect += 1
   updateLevelScoreEl()
   if (msg) msg.textContent = '太棒了！'
   setLevel3InputDisabled(true)
@@ -939,6 +982,7 @@ function tryLevel4Submit() {
   const field = document.getElementById('l4-field') as HTMLInputElement | null
   const msg = document.getElementById('l4-message')
   const val = field?.value ?? ''
+  l4Attempts += 1
 
   if (!matchesPinyinSyllable(val, l4Entry.syllable)) {
     playWrong()
@@ -951,6 +995,8 @@ function tryLevel4Submit() {
   l4Solved = true
   playCorrect()
   score += 1
+  totalQuestions += 1
+  if (l4Attempts === 1) firstTryCorrect += 1
   updateLevelScoreEl()
   if (msg) msg.textContent = '太棒了！'
   setLevel4InputDisabled(true)

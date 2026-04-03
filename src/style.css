@@ -225,6 +225,39 @@ header.home-header .title {
   margin: 0 0 1.5rem;
 }
 
+.celebrate-score {
+  margin: 0.25rem 0 1.6rem;
+}
+
+.celebrate-score-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  margin-bottom: 0.25rem;
+}
+
+.celebrate-score-value {
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 9vw, 3.1rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: 0.06em;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.9);
+}
+
+.celebrate-score--good .celebrate-score-value {
+  color: var(--ok);
+}
+
+.celebrate-score--warn .celebrate-score-value {
+  color: #ca8a04;
+}
+
+.celebrate-score--bad .celebrate-score-value {
+  color: var(--bad);
+}
+
 .btn-primary {
   min-height: 48px;
   padding: 0 1.5rem;
@@ -413,6 +446,20 @@ header.home-header .title {
   display: block;
   width: 44px;
   height: 44px;
+}
+
+/* 第二、三关汉字右侧「再听一遍」，略小于第一关居中按钮 */
+.l2-replay.l2-replay--sm {
+  width: 52px;
+  height: 52px;
+  border-width: 2px;
+  border-radius: 14px;
+  box-shadow: 0 2px 0 rgba(37, 99, 235, 0.18);
+}
+
+.l2-replay.l2-replay--sm svg {
+  width: 30px;
+  height: 30px;
 }
 
 .hint--l2 {
