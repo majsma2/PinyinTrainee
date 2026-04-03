@@ -61,6 +61,8 @@ npm run preview
 
 产物在 `dist/` 目录，可将该目录作为静态站点根目录部署。
 
+构建使用 **`base: './'`**（见 `vite.config.ts`），JS/CSS 为**相对路径**，适合部署在**子路径**（如 `https://user.github.io/repo/`）或避免资源根路径错误导致的白屏。预览请用 `npm run preview` 或任意静态服务器；**不要**依赖直接双击 `index.html`（`file://` 下部分环境对 ES 模块仍有限制）。
+
 ## Docker
 
 镜像内为 **多阶段构建**：Node 执行 `npm ci` 与 `npm run build`，再用 **Nginx** 托管 `dist`（端口 **80**）。构建时会自动复制 `pinyin-voice` 音频进静态资源。
