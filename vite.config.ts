@@ -6,6 +6,8 @@ export default defineConfig({
     host: true,
     port: 5173,
     strictPort: false,
+    /** 用域名访问本机 dev 时允许该 Host，否则 Vite 会返回 “Blocked request” */
+    allowedHosts: true,
   },
   preview: {
     host: true,

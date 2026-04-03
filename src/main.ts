@@ -147,14 +147,18 @@ function levelTop(title: string): HTMLElement {
 function mountHome() {
   const header = el('header', { className: 'header home-header' }, [
     el('h1', { className: 'title home-main-title', text: '拼音练习' }),
+    el('p', {
+      className: 'home-tagline',
+      text: '听一听，点一点，拼音真好玩～',
+    }),
   ])
   const hint = el('p', {
     className: 'hint',
-    text: '请选择要练习的关卡：',
+    text: '选一个关卡开始吧：',
   })
   const cards = el('div', { className: 'home-cards' })
 
-  const c1 = el('button', { type: 'button', className: 'home-card' })
+  const c1 = el('button', { type: 'button', className: 'home-card home-card--1' })
   c1.append(
     el('span', { className: 'home-card-title', text: '第一关' }),
     el('span', { className: 'home-card-desc', text: '听读音，选择正确的音节' }),
@@ -166,7 +170,7 @@ function mountHome() {
     renderApp()
   })
 
-  const c2 = el('button', { type: 'button', className: 'home-card' })
+  const c2 = el('button', { type: 'button', className: 'home-card home-card--2' })
   c2.append(
     el('span', { className: 'home-card-title', text: '第二关' }),
     el('span', { className: 'home-card-desc', text: '听读音，选出字的声母和韵母' }),
@@ -178,7 +182,7 @@ function mountHome() {
     renderApp()
   })
 
-  const c3 = el('button', { type: 'button', className: 'home-card' })
+  const c3 = el('button', { type: 'button', className: 'home-card home-card--3' })
   c3.append(
     el('span', { className: 'home-card-title', text: '第三关' }),
     el('span', {
@@ -256,7 +260,7 @@ function mountCelebrate() {
       : pendingLevel === 2
         ? '第二关'
         : '第三关'
-  const box = el('div', { className: 'celebrate' })
+  const box = el('div', { className: 'celebrate celebrate--pop' })
   box.append(
     el('div', { className: 'celebrate-title', text: '闯关成功！' }),
     el('p', {
