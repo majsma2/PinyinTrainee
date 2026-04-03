@@ -1,6 +1,8 @@
-# 拼音练习
+# 拼音练习 · PinyinTrainee
 
 面向初学儿童的 **汉语拼音互动练习** 网页：听读音、选答案，支持目标分数与闯关成功反馈。界面为中文，适配手机与桌面浏览器。
+
+仓库地址：<https://github.com/majsma2/PinyinTrainee>
 
 ## 功能概览
 
@@ -24,8 +26,8 @@
 **环境要求：** Node.js 18+（推荐 LTS）
 
 ```bash
-git clone <你的仓库地址>.git
-cd pinyin
+git clone https://github.com/majsma2/PinyinTrainee.git
+cd PinyinTrainee
 npm install
 npm run dev
 ```
