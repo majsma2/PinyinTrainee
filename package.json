@@ -1,0 +1,22 @@
+{
+  "name": "pinyin",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "copy-pinyin-voice": "node scripts/copy-pinyin-voice.cjs",
+    "postinstall": "node scripts/copy-pinyin-voice.cjs",
+    "predev": "node scripts/copy-pinyin-voice.cjs",
+    "prebuild": "node scripts/copy-pinyin-voice.cjs",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vite": "^8.0.1"
+  },
+  "dependencies": {
+    "pinyin-voice": "^1.0.1"
+  }
+}
