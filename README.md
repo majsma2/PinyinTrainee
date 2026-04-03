@@ -9,11 +9,12 @@
 
 | 模块 | 说明 |
 |------|------|
-| **首页** | 选择进入第一、二、三关（不展示累计得分） |
+| **首页** | 选择进入第一～四关（不展示累计得分） |
 | **目标分数** | 选关后可选择目标 **10 / 20 / 30 / 50** 分，进入关卡后得分从 0 开始 |
 | **第一关** | 听音节选答案：可练习 **声母 / 韵母 / 整体认读 / 混合**；四选一，选对得分 |
 | **第二关** | 显示单个汉字，听完整音节读音，在 **声母** 与 **韵母** 中各选一项（含三拼音节，如 `iang`、`uang`） |
 | **第三关** | 与第二关相同字库与读音；**不**给声母韵母选项，用 **全键盘** 输入拼音音节，**无需输入声调** |
+| **第四关** | 与第三关相同输入方式，但 **不播放读音**；字库为生僻复杂字（如龘、鷟），凭字形输入无调拼音 |
 | **闯关成功** | 得分达到目标后出现庆祝页，并播放成功音效 |
 
 读音使用 [pinyin-voice](https://www.npmjs.com/package/pinyin-voice) 的预录 MP3
@@ -25,7 +26,7 @@
 
 ## 本地运行
 
-**环境要求：** Node.js 18+（推荐 LTS）
+**环境要求：** **Node.js ≥ 20.19**（Vite 8 官方要求；低于 20 会报错且无法启动 `vite`）
 
 ```bash
 git clone https://github.com/majsma2/PinyinTrainee.git
@@ -35,6 +36,21 @@ npm run dev
 ```
 
 浏览器访问终端提示的地址（一般为 `http://localhost:5173`）。首次安装会通过 `postinstall` 将 `pinyin-voice` 的音频复制到 `public/pinyin-voice/`。
+
+### Linux / 服务器上 Node 版本过低时
+
+若 `node -v` 仍为 16.x 等，请先升级 Node 再执行 `npm install`。例如用 **nvm** 安装 20 LTS：
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+# 重新登录 shell 或执行：source ~/.nvm/nvm.sh
+nvm install 20
+nvm use 20
+node -v   # 应显示 v20.x
+cd ~/PinyinTrainee && npm install && npm run dev
+```
+
+对外访问开发服务器时，需保证 Vite 监听 `0.0.0.0`（本仓库 `vite.config.ts` 已设置 `server.host: true`），并在防火墙/安全组放行 **5173** 端口。
 
 ## 构建与预览
 
@@ -69,9 +85,9 @@ docker compose up --build
 ```
 src/
   main.ts           # 页面与关卡逻辑
-  data/             # 拼音表、第二关字库等
+  data/             # 拼音表、第二关字库、第四关生僻字等
   audio/            # 播放封装、音效
-  game/             # 第二关选项生成、第三关拼音比对
+  game/             # 第二关选项、拼音比对（第三、四关）
 scripts/
   copy-pinyin-voice.cjs  # 复制 npm 包内 mp3 到 public
 ```

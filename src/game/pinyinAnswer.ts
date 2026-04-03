@@ -31,3 +31,9 @@ export function matchesPinyinAnswer(userInput: string, voiceFile: string): boole
   const exp = expectedSyllableFromVoice(voiceFile)
   return normalizeUserPinyin(userInput) === exp
 }
+
+/** 第四关：直接给定无调拼音音节（无音频文件） */
+export function matchesPinyinSyllable(userInput: string, expectedSyllable: string): boolean {
+  const exp = normalizeUserPinyin(expectedSyllable)
+  return normalizeUserPinyin(userInput) === exp
+}
