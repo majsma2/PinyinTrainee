@@ -6,6 +6,7 @@ import {
 } from './data/pinyin.ts'
 import { LEVEL2_CHARACTERS, type Level2Entry } from './data/level2Characters.ts'
 import { buildLevel2Choices } from './game/level2Options.ts'
+import { matchesPinyinAnswer } from './game/pinyinAnswer.ts'
 import { cancelPinyinVoice, playPinyinToken, playVoiceFile } from './audio/playPinyinVoice.ts'
 import { playCorrect, playLevelComplete, playWrong } from './audio/sfx.ts'
 
@@ -18,10 +19,10 @@ const MODES: { id: PracticeMode; label: string }[] = [
 
 const TARGET_OPTIONS = [10, 20, 30, 50] as const
 
-type Screen = 'home' | 'pickTarget' | 'level1' | 'level2' | 'celebrate'
+type Screen = 'home' | 'pickTarget' | 'level1' | 'level2' | 'level3' | 'celebrate'
 
 let screen: Screen = 'home'
-let pendingLevel: 1 | 2 = 1
+let pendingLevel: 1 | 2 | 3 = 1
 /** 当前关卡内得分，进入关卡时清零 */
 let score = 0
 /** 本关目标分，选关后设定 */
@@ -40,6 +41,33 @@ let l2Finals: string[] = []
 let l2SelI: string | null = null
 let l2SelF: string | null = null
 let l2Solved = false
+
+/** —— 第三关 —— */
+let l3Entry: Level2Entry | null = null
+let l3Solved = false
+
+/** 全键盘：字母 QWERTY + ü + 退格 / 清空 / 确认（不要求输入声调） */
+const L3_LETTER_ROWS: readonly (readonly string[])[] = [
+  ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+  ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+  ['z', 'x', 'c', 'v', 'b', 'n', 'm'],
+] as const
+
+/** 手机/平板等粗指针设备：第三关用自绘键盘，避免系统输入法抢占 */
+function prefersCoarsePointer(): boolean {
+  return window.matchMedia('(pointer: coarse)').matches
+}
+
+function applyL3FieldTouchBehavior(field: HTMLInputElement) {
+  const touch = prefersCoarsePointer()
+  field.readOnly = touch
+  field.setAttribute('inputmode', touch ? 'none' : 'latin')
+}
+
+function focusL3FieldOnDesktop(field: HTMLInputElement | null) {
+  if (!field || prefersCoarsePointer()) return
+  field.focus()
+}
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -73,6 +101,11 @@ function ensureLevel2Data() {
   const { initials, finals } = buildLevel2Choices(l2Entry.initial, l2Entry.final)
   l2Initials = initials
   l2Finals = finals
+}
+
+function ensureLevel3Data() {
+  l3Solved = false
+  l3Entry = pickRandomLevel2Entry()
 }
 
 function goHome() {
@@ -145,12 +178,28 @@ function mountHome() {
     renderApp()
   })
 
-  cards.append(c1, c2)
+  const c3 = el('button', { type: 'button', className: 'home-card' })
+  c3.append(
+    el('span', { className: 'home-card-title', text: '第三关' }),
+    el('span', {
+      className: 'home-card-desc',
+      text: '听读音，用键盘输入完整拼音',
+    }),
+  )
+  c3.addEventListener('click', () => {
+    cancelPinyinVoice()
+    pendingLevel = 3
+    screen = 'pickTarget'
+    renderApp()
+  })
+
+  cards.append(c1, c2, c3)
   app.append(header, hint, cards)
 }
 
 function mountPickTarget() {
-  const lvlName = pendingLevel === 1 ? '第一关' : '第二关'
+  const lvlName =
+    pendingLevel === 1 ? '第一关' : pendingLevel === 2 ? '第二关' : '第三关'
   const wrap = el('div', { className: 'level-top' })
   const back = el('button', {
     type: 'button',
@@ -179,11 +228,21 @@ function mountPickTarget() {
       targetScore = t
       score = 0
       cancelPinyinVoice()
-      screen = pendingLevel === 1 ? 'level1' : 'level2'
+      screen =
+        pendingLevel === 1
+          ? 'level1'
+          : pendingLevel === 2
+            ? 'level2'
+            : 'level3'
       if (screen === 'level2') ensureLevel2Data()
+      if (screen === 'level3') ensureLevel3Data()
       renderApp()
       if (screen === 'level1') startLevel1Question()
-      else queueMicrotask(() => l2Entry && playVoiceFile(l2Entry.voice))
+      else if (screen === 'level2') {
+        queueMicrotask(() => l2Entry && playVoiceFile(l2Entry.voice))
+      } else {
+        queueMicrotask(() => l3Entry && playVoiceFile(l3Entry.voice))
+      }
     })
     grid.append(btn)
   }
@@ -192,7 +251,11 @@ function mountPickTarget() {
 
 function mountCelebrate() {
   const title =
-    pendingLevel === 1 ? '第一关' : '第二关'
+    pendingLevel === 1
+      ? '第一关'
+      : pendingLevel === 2
+        ? '第二关'
+        : '第三关'
   const box = el('div', { className: 'celebrate' })
   box.append(
     el('div', { className: 'celebrate-title', text: '闯关成功！' }),
@@ -236,8 +299,17 @@ function renderApp() {
     return
   }
 
-  if (!l2Entry) ensureLevel2Data()
-  mountLevel2()
+  if (screen === 'level2') {
+    if (!l2Entry) ensureLevel2Data()
+    mountLevel2()
+    return
+  }
+
+  if (screen === 'level3') {
+    if (!l3Entry) ensureLevel3Data()
+    mountLevel3()
+    return
+  }
 }
 
 function mountLevel1() {
@@ -267,12 +339,14 @@ function mountLevel1() {
     text: '听一听，下面哪个是它读的？点对了加一分。',
   })
 
-  const controls = el('div', { className: 'controls' })
+  const controls = el('div', { className: 'controls controls--center' })
   const replayBtn = el('button', {
     type: 'button',
-    className: 'btn-secondary',
-    text: '再听一遍',
+    className: 'l2-replay',
   })
+  replayBtn.setAttribute('aria-label', '再听一遍')
+  replayBtn.innerHTML =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>'
   replayBtn.addEventListener('click', () => {
     if (!l1Target) return
     playPinyinToken(l1Target)
@@ -319,7 +393,7 @@ function mountLevel2() {
   })
   replayBtn.setAttribute('aria-label', '再听一遍')
   replayBtn.innerHTML =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>'
+    '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>'
   replayBtn.addEventListener('click', () => {
     if (l2Entry) playVoiceFile(l2Entry.voice)
   })
@@ -357,6 +431,141 @@ function mountLevel2() {
 
   app.append(hint, charRow, msg, labI, rowI, labF, rowF)
   syncLevel2SelectionStyles()
+}
+
+function mountLevel3() {
+  if (!l3Entry) return
+
+  app.append(levelTop('第三关'))
+
+  const hint = el('p', {
+    className: 'hint hint--l2',
+    text: '看汉字、听读音，在下方用键盘输入拼音音节即可，无需输入声调，如 ma、jue、liang。输入后点「确认」。',
+  })
+
+  const charRow = el('div', { className: 'l2-char-row' })
+  const charBox = el('div', {
+    className: 'l2-char',
+    id: 'l3-char',
+    text: l3Entry.char,
+  })
+  const replayBtn = el('button', {
+    type: 'button',
+    className: 'l2-replay',
+  })
+  replayBtn.setAttribute('aria-label', '再听一遍')
+  replayBtn.innerHTML =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>'
+  replayBtn.addEventListener('click', () => {
+    if (l3Entry) playVoiceFile(l3Entry.voice)
+  })
+  charRow.append(charBox, replayBtn)
+
+  const field = el('input', {
+    className: 'l3-field',
+    id: 'l3-field',
+    type: 'text',
+    spellcheck: false,
+    autocomplete: 'off',
+    autocapitalize: 'off',
+  }) as HTMLInputElement
+  field.setAttribute('aria-label', '输入拼音')
+  field.placeholder = '输入拼音（不含声调）'
+  applyL3FieldTouchBehavior(field)
+  field.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (prefersCoarsePointer()) e.preventDefault()
+    },
+    { passive: false },
+  )
+  field.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      tryLevel3Submit()
+    }
+  })
+
+  const msg = el('p', {
+    className: 'message message--l2',
+    id: 'l3-message',
+    text: '\u00a0',
+  })
+
+  const kb = el('div', { className: 'l3-kb' })
+
+  for (const row of L3_LETTER_ROWS) {
+    const r = el('div', { className: 'l3-kb-row' })
+    for (const ch of row) {
+      r.append(makeL3KeyBtn(ch))
+    }
+    kb.append(r)
+  }
+
+  const extraRow = el('div', { className: 'l3-kb-row l3-kb-row--extra' })
+  extraRow.append(makeL3KeyBtn('ü'))
+  extraRow.append(
+    makeL3SpecialBtn('⌫', '退格', () => {
+      const f = document.getElementById('l3-field') as HTMLInputElement | null
+      if (!f || l3Solved) return
+      f.value = f.value.slice(0, -1)
+      focusL3FieldOnDesktop(f)
+    }),
+  )
+  kb.append(extraRow)
+
+  const actions = el('div', { className: 'l3-actions' })
+  const clearBtn = el('button', {
+    type: 'button',
+    className: 'btn-secondary l3-action',
+    text: '清空',
+  })
+  clearBtn.addEventListener('click', () => {
+    const f = document.getElementById('l3-field') as HTMLInputElement | null
+    if (!f || l3Solved) return
+    f.value = ''
+    focusL3FieldOnDesktop(f)
+  })
+  const submitBtn = el('button', {
+    type: 'button',
+    className: 'btn-primary l3-action',
+    text: '确认',
+  })
+  submitBtn.addEventListener('click', () => tryLevel3Submit())
+  actions.append(clearBtn, submitBtn)
+
+  app.append(hint, charRow, field, msg, kb, actions)
+  queueMicrotask(() => focusL3FieldOnDesktop(field))
+}
+
+function makeL3KeyBtn(ch: string, label?: string): HTMLButtonElement {
+  const btn = el('button', {
+    type: 'button',
+    className: 'l3-key',
+    text: label ?? ch,
+  }) as HTMLButtonElement
+  btn.addEventListener('click', () => {
+    const f = document.getElementById('l3-field') as HTMLInputElement | null
+    if (!f || l3Solved) return
+    f.value += ch
+    focusL3FieldOnDesktop(f)
+  })
+  return btn
+}
+
+function makeL3SpecialBtn(
+  text: string,
+  aria: string,
+  onClick: () => void,
+): HTMLButtonElement {
+  const btn = el('button', {
+    type: 'button',
+    className: 'l3-key l3-key--wide',
+    text,
+  }) as HTMLButtonElement
+  btn.setAttribute('aria-label', aria)
+  btn.addEventListener('click', onClick)
+  return btn
 }
 
 function syncLevel2SelectionStyles() {
@@ -496,6 +705,56 @@ function tryLevel2Submit() {
     b.classList.remove('option--selected', 'option--wrong')
   })
   syncLevel2SelectionStyles()
+}
+
+function setLevel3InputDisabled(disabled: boolean) {
+  const f = document.getElementById('l3-field') as HTMLInputElement | null
+  if (f) {
+    f.disabled = disabled
+    if (disabled) {
+      f.readOnly = true
+    } else {
+      applyL3FieldTouchBehavior(f)
+    }
+  }
+  app.querySelectorAll<HTMLButtonElement>('.l3-key, .l3-actions .btn-primary, .l3-actions .btn-secondary').forEach((b) => {
+    b.disabled = disabled
+  })
+}
+
+function tryLevel3Submit() {
+  if (l3Solved || screen !== 'level3' || !l3Entry) return
+  const field = document.getElementById('l3-field') as HTMLInputElement | null
+  const msg = document.getElementById('l3-message')
+  const val = field?.value ?? ''
+
+  if (!matchesPinyinAnswer(val, l3Entry.voice)) {
+    playWrong()
+    if (msg) msg.textContent = '不对哦，请检查拼音字母后重试。'
+    field?.classList.add('l3-field--shake')
+    setTimeout(() => field?.classList.remove('l3-field--shake'), 450)
+    return
+  }
+
+  l3Solved = true
+  playCorrect()
+  score += 1
+  updateLevelScoreEl()
+  if (msg) msg.textContent = '太棒了！'
+  setLevel3InputDisabled(true)
+
+  if (score >= targetScore) {
+    setTimeout(() => finishLevelAndCelebrate(), 750)
+    return
+  }
+
+  setTimeout(() => {
+    ensureLevel3Data()
+    renderApp()
+    queueMicrotask(() => {
+      if (l3Entry) playVoiceFile(l3Entry.voice)
+    })
+  }, 900)
 }
 
 renderApp()
