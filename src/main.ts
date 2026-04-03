@@ -5,8 +5,9 @@ import {
   poolForMode,
 } from './data/pinyin.ts'
 import { LEVEL2_CHARACTERS, type Level2Entry } from './data/level2Characters.ts'
+import { LEVEL4_CHARACTERS, type Level4Entry } from './data/level4Characters.ts'
 import { buildLevel2Choices } from './game/level2Options.ts'
-import { matchesPinyinAnswer } from './game/pinyinAnswer.ts'
+import { matchesPinyinAnswer, matchesPinyinSyllable } from './game/pinyinAnswer.ts'
 import { cancelPinyinVoice, playPinyinToken, playVoiceFile } from './audio/playPinyinVoice.ts'
 import { playCorrect, playLevelComplete, playWrong } from './audio/sfx.ts'
 
@@ -19,10 +20,17 @@ const MODES: { id: PracticeMode; label: string }[] = [
 
 const TARGET_OPTIONS = [10, 20, 30, 50] as const
 
-type Screen = 'home' | 'pickTarget' | 'level1' | 'level2' | 'level3' | 'celebrate'
+type Screen =
+  | 'home'
+  | 'pickTarget'
+  | 'level1'
+  | 'level2'
+  | 'level3'
+  | 'level4'
+  | 'celebrate'
 
 let screen: Screen = 'home'
-let pendingLevel: 1 | 2 | 3 = 1
+let pendingLevel: 1 | 2 | 3 | 4 = 1
 /** 当前关卡内得分，进入关卡时清零 */
 let score = 0
 /** 本关目标分，选关后设定 */
@@ -45,6 +53,10 @@ let l2Solved = false
 /** —— 第三关 —— */
 let l3Entry: Level2Entry | null = null
 let l3Solved = false
+
+/** —— 第四关 —— */
+let l4Entry: Level4Entry | null = null
+let l4Solved = false
 
 /** 全键盘：字母 QWERTY + ü + 退格 / 清空 / 确认（不要求输入声调） */
 const L3_LETTER_ROWS: readonly (readonly string[])[] = [
@@ -106,6 +118,15 @@ function ensureLevel2Data() {
 function ensureLevel3Data() {
   l3Solved = false
   l3Entry = pickRandomLevel2Entry()
+}
+
+function pickRandomLevel4Entry(): Level4Entry {
+  return LEVEL4_CHARACTERS[Math.floor(Math.random() * LEVEL4_CHARACTERS.length)]!
+}
+
+function ensureLevel4Data() {
+  l4Solved = false
+  l4Entry = pickRandomLevel4Entry()
 }
 
 function goHome() {
@@ -197,13 +218,34 @@ function mountHome() {
     renderApp()
   })
 
-  cards.append(c1, c2, c3)
+  const c4 = el('button', { type: 'button', className: 'home-card home-card--4' })
+  c4.append(
+    el('span', { className: 'home-card-title', text: '魔鬼关' }),
+    el('span', {
+      className: 'home-card-desc',
+      text: '快叫爸爸妈妈来认字啦~',
+    }),
+  )
+  c4.addEventListener('click', () => {
+    cancelPinyinVoice()
+    pendingLevel = 4
+    screen = 'pickTarget'
+    renderApp()
+  })
+
+  cards.append(c1, c2, c3, c4)
   app.append(header, hint, cards)
 }
 
 function mountPickTarget() {
   const lvlName =
-    pendingLevel === 1 ? '第一关' : pendingLevel === 2 ? '第二关' : '第三关'
+    pendingLevel === 1
+      ? '第一关'
+      : pendingLevel === 2
+        ? '第二关'
+        : pendingLevel === 3
+          ? '第三关'
+          : '第四关'
   const wrap = el('div', { className: 'level-top' })
   const back = el('button', {
     type: 'button',
@@ -237,14 +279,17 @@ function mountPickTarget() {
           ? 'level1'
           : pendingLevel === 2
             ? 'level2'
-            : 'level3'
+            : pendingLevel === 3
+              ? 'level3'
+              : 'level4'
       if (screen === 'level2') ensureLevel2Data()
       if (screen === 'level3') ensureLevel3Data()
+      if (screen === 'level4') ensureLevel4Data()
       renderApp()
       if (screen === 'level1') startLevel1Question()
       else if (screen === 'level2') {
         queueMicrotask(() => l2Entry && playVoiceFile(l2Entry.voice))
-      } else {
+      } else if (screen === 'level3') {
         queueMicrotask(() => l3Entry && playVoiceFile(l3Entry.voice))
       }
     })
@@ -259,7 +304,9 @@ function mountCelebrate() {
       ? '第一关'
       : pendingLevel === 2
         ? '第二关'
-        : '第三关'
+        : pendingLevel === 3
+          ? '第三关'
+          : '第四关'
   const box = el('div', { className: 'celebrate celebrate--pop' })
   box.append(
     el('div', { className: 'celebrate-title', text: '闯关成功！' }),
@@ -312,6 +359,12 @@ function renderApp() {
   if (screen === 'level3') {
     if (!l3Entry) ensureLevel3Data()
     mountLevel3()
+    return
+  }
+
+  if (screen === 'level4') {
+    if (!l4Entry) ensureLevel4Data()
+    mountLevel4()
     return
   }
 }
@@ -501,13 +554,13 @@ function mountLevel3() {
   for (const row of L3_LETTER_ROWS) {
     const r = el('div', { className: 'l3-kb-row' })
     for (const ch of row) {
-      r.append(makeL3KeyBtn(ch))
+      r.append(makePinyinKeyBtn('l3-field', ch))
     }
     kb.append(r)
   }
 
   const extraRow = el('div', { className: 'l3-kb-row l3-kb-row--extra' })
-  extraRow.append(makeL3KeyBtn('ü'))
+  extraRow.append(makePinyinKeyBtn('l3-field', 'ü'))
   extraRow.append(
     makeL3SpecialBtn('⌫', '退格', () => {
       const f = document.getElementById('l3-field') as HTMLInputElement | null
@@ -542,15 +595,120 @@ function mountLevel3() {
   queueMicrotask(() => focusL3FieldOnDesktop(field))
 }
 
-function makeL3KeyBtn(ch: string, label?: string): HTMLButtonElement {
+function mountLevel4() {
+  if (!l4Entry) return
+
+  app.append(levelTop('第四关'))
+
+  const hint = el('p', {
+    className: 'hint hint--l2',
+    text: '本关不播放读音。请根据字形，在下方输入拼音音节（无调），如 long、zhuo。不会可以查字典哦～输入后点「确认」。',
+  })
+
+  const charRow = el('div', { className: 'l2-char-row' })
+  const charBox = el('div', {
+    className: 'l2-char l4-char',
+    id: 'l4-char',
+    text: l4Entry.char,
+  })
+  charRow.append(charBox)
+
+  const field = el('input', {
+    className: 'l3-field',
+    id: 'l4-field',
+    type: 'text',
+    spellcheck: false,
+    autocomplete: 'off',
+    autocapitalize: 'off',
+  }) as HTMLInputElement
+  field.setAttribute('aria-label', '输入拼音')
+  field.placeholder = '输入拼音（不含声调）'
+  applyL3FieldTouchBehavior(field)
+  field.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (prefersCoarsePointer()) e.preventDefault()
+    },
+    { passive: false },
+  )
+  field.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      tryLevel4Submit()
+    }
+  })
+
+  const msg = el('p', {
+    className: 'message message--l2',
+    id: 'l4-message',
+    text: '\u00a0',
+  })
+
+  const kb = el('div', { className: 'l3-kb' })
+
+  for (const row of L3_LETTER_ROWS) {
+    const r = el('div', { className: 'l3-kb-row' })
+    for (const ch of row) {
+      r.append(makePinyinKeyBtn('l4-field', ch))
+    }
+    kb.append(r)
+  }
+
+  const extraRow = el('div', { className: 'l3-kb-row l3-kb-row--extra' })
+  extraRow.append(makePinyinKeyBtn('l4-field', 'ü'))
+  extraRow.append(
+    makeL3SpecialBtn('⌫', '退格', () => {
+      const f = document.getElementById('l4-field') as HTMLInputElement | null
+      if (!f || l4Solved) return
+      f.value = f.value.slice(0, -1)
+      focusL3FieldOnDesktop(f)
+    }),
+  )
+  kb.append(extraRow)
+
+  const actions = el('div', { className: 'l3-actions' })
+  const clearBtn = el('button', {
+    type: 'button',
+    className: 'btn-secondary l3-action',
+    text: '清空',
+  })
+  clearBtn.addEventListener('click', () => {
+    const f = document.getElementById('l4-field') as HTMLInputElement | null
+    if (!f || l4Solved) return
+    f.value = ''
+    focusL3FieldOnDesktop(f)
+  })
+  const submitBtn = el('button', {
+    type: 'button',
+    className: 'btn-primary l3-action',
+    text: '确认',
+  })
+  submitBtn.addEventListener('click', () => tryLevel4Submit())
+  actions.append(clearBtn, submitBtn)
+
+  app.append(hint, charRow, field, msg, kb, actions)
+  queueMicrotask(() => focusL3FieldOnDesktop(field))
+}
+
+function isPinyinFieldSolved(fieldId: string): boolean {
+  if (fieldId === 'l3-field') return l3Solved
+  if (fieldId === 'l4-field') return l4Solved
+  return false
+}
+
+function makePinyinKeyBtn(
+  fieldId: 'l3-field' | 'l4-field',
+  ch: string,
+  label?: string,
+): HTMLButtonElement {
   const btn = el('button', {
     type: 'button',
     className: 'l3-key',
     text: label ?? ch,
   }) as HTMLButtonElement
   btn.addEventListener('click', () => {
-    const f = document.getElementById('l3-field') as HTMLInputElement | null
-    if (!f || l3Solved) return
+    const f = document.getElementById(fieldId) as HTMLInputElement | null
+    if (!f || isPinyinFieldSolved(fieldId)) return
     f.value += ch
     focusL3FieldOnDesktop(f)
   })
@@ -758,6 +916,53 @@ function tryLevel3Submit() {
     queueMicrotask(() => {
       if (l3Entry) playVoiceFile(l3Entry.voice)
     })
+  }, 900)
+}
+
+function setLevel4InputDisabled(disabled: boolean) {
+  const f = document.getElementById('l4-field') as HTMLInputElement | null
+  if (f) {
+    f.disabled = disabled
+    if (disabled) {
+      f.readOnly = true
+    } else {
+      applyL3FieldTouchBehavior(f)
+    }
+  }
+  app.querySelectorAll<HTMLButtonElement>('.l3-key, .l3-actions .btn-primary, .l3-actions .btn-secondary').forEach((b) => {
+    b.disabled = disabled
+  })
+}
+
+function tryLevel4Submit() {
+  if (l4Solved || screen !== 'level4' || !l4Entry) return
+  const field = document.getElementById('l4-field') as HTMLInputElement | null
+  const msg = document.getElementById('l4-message')
+  const val = field?.value ?? ''
+
+  if (!matchesPinyinSyllable(val, l4Entry.syllable)) {
+    playWrong()
+    if (msg) msg.textContent = '不对哦，请检查拼音字母后重试。'
+    field?.classList.add('l3-field--shake')
+    setTimeout(() => field?.classList.remove('l3-field--shake'), 450)
+    return
+  }
+
+  l4Solved = true
+  playCorrect()
+  score += 1
+  updateLevelScoreEl()
+  if (msg) msg.textContent = '太棒了！'
+  setLevel4InputDisabled(true)
+
+  if (score >= targetScore) {
+    setTimeout(() => finishLevelAndCelebrate(), 750)
+    return
+  }
+
+  setTimeout(() => {
+    ensureLevel4Data()
+    renderApp()
   }, 900)
 }
 

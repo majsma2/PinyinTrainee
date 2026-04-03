@@ -290,6 +290,9 @@ header.home-header .title {
 .home-card:nth-child(3) {
   animation-delay: 0.19s;
 }
+.home-card:nth-child(4) {
+  animation-delay: 0.26s;
+}
 
 @keyframes home-card-enter {
   from {
@@ -317,6 +320,11 @@ header.home-header .title {
   background: linear-gradient(145deg, #ffffff 0%, #fff7ed 100%);
 }
 
+.home-card--4 {
+  border-color: rgba(167, 139, 250, 0.55);
+  background: linear-gradient(145deg, #ffffff 0%, #f5f3ff 100%);
+}
+
 .home-card:active {
   transform: scale(0.98) translateY(2px);
 }
@@ -336,6 +344,10 @@ header.home-header .title {
 
 .home-card--3:hover {
   background: linear-gradient(145deg, #ffffff 0%, #ffedd5 100%);
+}
+
+.home-card--4:hover {
+  background: linear-gradient(145deg, #ffffff 0%, #ede9fe 100%);
 }
 
 .home-card-title {
@@ -367,6 +379,11 @@ header.home-header .title {
   font-weight: 800;
   margin: 0;
   line-height: 1;
+}
+
+/* 第四关：极难字，略放大字号 */
+.l4-char {
+  font-size: clamp(3rem, 15vw, 4.25rem);
 }
 
 .l2-replay {
